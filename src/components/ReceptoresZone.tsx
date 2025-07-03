@@ -3,304 +3,201 @@ import React, { useState } from 'react';
 interface Receptor {
   id: number;
   name: string;
-  // ... resto das interfaces
-/* Receptores Zone */
-.receptores-zone {
-  padding: 24px;
-  height: 100%;
-  overflow-y: auto;
+  url: string;
+  status: 'live' | 'connecting' | 'offline';
+  resolution?: string;
+  bitrate?: number;
+  audioLevels?: {
+    left: number;
+    right: number;
+  };
 }
 
-.receptores-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 24px;
-  padding-bottom: 16px;
-  border-bottom: 1px solid #333;
-}
+const ReceptoresZone: React.FC = () => {
+  const [receptores, setReceptores] = useState<Receptor[]>([
+    {
+      id: 1,
+      name: 'Camera 1',
+      url: 'srt://192.168.1.100:9999',
+      status: 'live',
+      resolution: '1920x1080',
+      bitrate: 5000,
+      audioLevels: { left: -12, right: -15 }
+    },
+    {
+      id: 2,
+      name: 'Camera 2',
+      url: 'srt://192.168.1.101:9999',
+      status: 'connecting'
+    },
+    {
+      id: 3,
+      name: 'Camera 3',
+      url: 'srt://192.168.1.102:9999',
+      status: 'offline'
+    }
+  ]);
 
-.receptores-header h2 {
-  margin: 0;
-  font-size: 20px;
-  color: #fff;
-  font-weight: 600;
-}
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'live': return '🔴';
+      case 'connecting': return '🟡';
+      case 'offline': return '⚫';
+      default: return '⚫';
+    }
+  };
 
-.receptores-stats {
-  display: flex;
-  gap: 16px;
-}
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'live': return 'LIVE';
+      case 'connecting': return 'CONNECTING';
+      case 'offline': return 'OFFLINE';
+      default: return 'OFFLINE';
+    }
+  };
 
-.stat {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-}
+  const renderMonitorContent = (receptor: Receptor) => {
+    if (receptor.status === 'live') {
+      return (
+        <div className="monitor-content">
+          <div className="video-placeholder">
+            <div className="video-signal">📹</div>
+            <div className="video-info">
+              <div className="video-res">{receptor.resolution}</div>
+              <div className="video-bitrate">{receptor.bitrate} kbps</div>
+            </div>
+          </div>
+        </div>
+      );
+    } else if (receptor.status === 'connecting') {
+      return (
+        <div className="monitor-content">
+          <div className="connecting-animation">
+            <div className="spinner"></div>
+            <div className="connecting-text">Connecting...</div>
+          </div>
+        </div>
+      );
+    } else {
+      return (
+        <div className="monitor-content">
+          <div className="no-signal">
+            <div className="no-signal-icon">📵</div>
+            <div className="no-signal-text">No Signal</div>
+          </div>
+        </div>
+      );
+    }
+  };
 
-.stat-label {
-  font-size: 10px;
-  color: #888;
-  font-weight: 500;
-}
+  const renderAudioMeters = (receptor: Receptor) => {
+    if (!receptor.audioLevels) return null;
 
-.stat-value {
-  font-size: 14px;
-  color: #fff;
-  font-weight: 600;
-  font-family: 'Consolas', monospace;
-}
+    const calculateMeterWidth = (db: number) => {
+      // Convert dB to percentage (assuming -60dB to 0dB range)
+      const minDb = -60;
+      const maxDb = 0;
+      const percentage = Math.max(0, Math.min(100, ((db - minDb) / (maxDb - minDb)) * 100));
+      return percentage;
+    };
 
-/* Grid de Receptores */
-.receptores-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
-  margin-bottom: 24px;
-}
+    return (
+      <div className="receptor-audio">
+        <div className="audio-meter">
+          <div className="channel-label">L</div>
+          <div className="meter-bar">
+            <div 
+              className="meter-fill" 
+              style={{ width: `${calculateMeterWidth(receptor.audioLevels.left)}%` }}
+            />
+          </div>
+          <div className="meter-db">{receptor.audioLevels.left}dB</div>
+        </div>
+        <div className="audio-meter">
+          <div className="channel-label">R</div>
+          <div className="meter-bar">
+            <div 
+              className="meter-fill" 
+              style={{ width: `${calculateMeterWidth(receptor.audioLevels.right)}%` }}
+            />
+          </div>
+          <div className="meter-db">{receptor.audioLevels.right}dB</div>
+        </div>
+      </div>
+    );
+  };
 
-.receptor-card {
-  background: #1a1a1a;
-  border: 1px solid #333;
-  border-radius: 12px;
-  padding: 16px;
-  transition: all 0.3s ease;
-}
+  const addReceptor = () => {
+    const newReceptor: Receptor = {
+      id: receptores.length + 1,
+      name: `Receptor ${receptores.length + 1}`,
+      url: `srt://192.168.1.${100 + receptores.length + 1}:9999`,
+      status: 'offline'
+    };
+    setReceptores([...receptores, newReceptor]);
+  };
 
-.receptor-card:hover {
-  border-color: #444;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
+  const liveCount = receptores.filter(r => r.status === 'live').length;
+  const connectingCount = receptores.filter(r => r.status === 'connecting').length;
+  const offlineCount = receptores.filter(r => r.status === 'offline').length;
 
-.receptor-card.live {
-  border-color: #4caf50;
-  box-shadow: 0 0 0 1px rgba(76, 175, 80, 0.3);
-}
+  return (
+    <div className="receptores-zone">
+      <div className="receptores-header">
+        <h2>Receptores</h2>
+        <div className="receptores-stats">
+          <div className="stat">
+            <div className="stat-label">LIVE</div>
+            <div className="stat-value">{liveCount}</div>
+          </div>
+          <div className="stat">
+            <div className="stat-label">CONNECTING</div>
+            <div className="stat-value">{connectingCount}</div>
+          </div>
+          <div className="stat">
+            <div className="stat-label">OFFLINE</div>
+            <div className="stat-value">{offlineCount}</div>
+          </div>
+        </div>
+      </div>
 
-.receptor-card.connecting {
-  border-color: #ff9800;
-  box-shadow: 0 0 0 1px rgba(255, 152, 0, 0.3);
-}
+      <div className="receptores-grid">
+        {receptores.map(receptor => (
+          <div key={receptor.id} className={`receptor-card ${receptor.status}`}>
+            <div className="receptor-monitor">
+              {renderMonitorContent(receptor)}
+              <div className="monitor-status">
+                <span className="status-indicator">
+                  {getStatusIcon(receptor.status)}
+                </span>
+                <span>{getStatusText(receptor.status)}</span>
+              </div>
+            </div>
 
-/* Monitor de Vídeo */
-.receptor-monitor {
-  position: relative;
-  background: #000;
-  border-radius: 8px;
-  height: 120px;
-  margin-bottom: 12px;
-  overflow: hidden;
-  border: 1px solid #333;
-}
+            <div className="receptor-info">
+              <div className="receptor-name">{receptor.name}</div>
+              <div className="receptor-url">{receptor.url}</div>
+            </div>
 
-.monitor-content {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+            {renderAudioMeters(receptor)}
 
-.video-placeholder {
-  text-align: center;
-  color: #fff;
-}
+            <div className="receptor-controls">
+              <button className="control-btn">▶️</button>
+              <button className="control-btn">⏹️</button>
+              <button className="control-btn">⚙️</button>
+            </div>
+          </div>
+        ))}
+      </div>
 
-.video-signal {
-  font-size: 32px;
-  margin-bottom: 8px;
-}
+      <div className="add-receptor">
+        <button className="add-receptor-btn" onClick={addReceptor}>
+          <span className="add-icon">➕</span>
+          <span className="add-text">ADICIONAR RECEPTOR</span>
+        </button>
+      </div>
+    </div>
+  );
+};
 
-.video-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.video-res {
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.video-bitrate {
-  font-size: 10px;
-  color: #888;
-}
-
-.connecting-animation {
-  text-align: center;
-  color: #ff9800;
-}
-
-.spinner {
-  width: 24px;
-  height: 24px;
-  border: 2px solid #333;
-  border-top: 2px solid #ff9800;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin: 0 auto 8px;
-}
-
-.connecting-text {
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.no-signal {
-  text-align: center;
-  color: #666;
-}
-
-.no-signal-icon {
-  font-size: 32px;
-  margin-bottom: 8px;
-}
-
-.no-signal-text {
-  font-size: 12px;
-  font-weight: 500;
-}
-
-/* Status Overlay */
-.monitor-status {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: rgba(0, 0, 0, 0.8);
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 600;
-}
-
-.status-indicator {
-  font-size: 12px;
-}
-
-/* Informações do Receptor */
-.receptor-info {
-  margin-bottom: 12px;
-}
-
-.receptor-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #fff;
-  margin-bottom: 4px;
-}
-
-.receptor-url {
-  font-size: 11px;
-  color: #888;
-  font-family: 'Consolas', monospace;
-  word-break: break-all;
-}
-
-/* Audio Meters dos Receptores */
-.receptor-audio {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.audio-meter {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-}
-
-.channel-label {
-  width: 12px;
-  font-weight: 600;
-  color: #ccc;
-}
-
-.meter-bar {
-  flex: 1;
-  height: 12px;
-  background: #333;
-  border-radius: 2px;
-  overflow: hidden;
-}
-
-.meter-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #4caf50 0%, #8bc34a 70%, #ffc107 85%, #ff5722 100%);
-  transition: width 0.1s ease;
-}
-
-.meter-db {
-  width: 30px;
-  text-align: right;
-  font-family: 'Consolas', monospace;
-  font-size: 9px;
-  color: #888;
-}
-
-/* Controles do Receptor */
-.receptor-controls {
-  display: flex;
-  justify-content: space-between;
-}
-
-.control-btn {
-  background: #333;
-  border: 1px solid #444;
-  color: #ccc;
-  padding: 6px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.2s;
-}
-
-.control-btn:hover {
-  background: #444;
-  border-color: #555;
-}
-
-/* Adicionar Receptor */
-.add-receptor {
-  text-align: center;
-}
-
-.add-receptor-btn {
-  background: linear-gradient(135deg, #2d7a5f 0%, #3a9b78 100%);
-  border: none;
-  color: white;
-  padding: 16px 32px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 auto;
-  transition: all 0.3s ease;
-}
-
-.add-receptor-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(45, 122, 95, 0.3);
-}
-
-.add-icon {
-  font-size: 16px;
-}
-
-.add-text {
-  font-size: 12px;
-  letter-spacing: 1px;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
+export default ReceptoresZone;
